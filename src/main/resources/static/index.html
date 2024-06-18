@@ -75,14 +75,14 @@
                         console.log('Connected: ' + frame);
                         const headers = { 'auto-delete': true}
                         stompClient.value.subscribe(`/user/queue/private`, (subscribeMessage) => {
-                            console.log(subscribeMessage)
+                            console.log(`user private message : ${subscribeMessage}`)
                             messages.value.push(JSON.parse(subscribeMessage.body));
                         }, headers);
 
                         stompClient.value.subscribe(`/topic/public`, (subscribeMessage) => {
                             console.log(subscribeMessage)
                             messages.value.push(JSON.parse(subscribeMessage.body));
-                        }, headers);
+                        });
                     });
                 }
 

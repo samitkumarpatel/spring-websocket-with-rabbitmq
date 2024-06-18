@@ -4,11 +4,11 @@ services:
     container_name: rabbitmq
     restart: unless-stopped
     ports:
-      #- "5672:5672"
+      - "5672:5672"
       - "15672:15672" #Admin console access
       - "15674:15674" #rabbit_web_stomp
       - "61613:61613" # STOMP
-      #- "1883:1883" #MQTT
+      - "1883:1883" #MQTT
     command:
       - /bin/bash
       - -c

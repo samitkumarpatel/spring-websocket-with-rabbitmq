@@ -32,6 +32,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
+import org.springframework.web.socket.messaging.SessionUnsubscribeEvent;
 
 import java.security.Principal;
 import java.util.List;
@@ -54,22 +55,22 @@ public class ChatApplication {
 
 	@EventListener
 	public void sessionConnectEvent(SessionConnectEvent sessionConnectEvent) {
-		log.info("Session Connected..., GetUser: {}", sessionConnectEvent);
+		log.info("SessionConnectEvent: {}", sessionConnectEvent);
 	}
 
 	@EventListener
 	public void sessionDisconnectEvent(SessionDisconnectEvent sessionDisconnectEvent) {
-		log.info("Session Disconnect ..., SessionId: {}", sessionDisconnectEvent);
+		log.info("SessionDisconnectEvent: {}", sessionDisconnectEvent);
 	}
 
 	@EventListener
 	void sessionSubscribeEvent(SessionSubscribeEvent sessionSubscribeEvent) {
-		log.info("Session Subscribe ..., SessionId: {}", sessionSubscribeEvent);
+		log.info("SessionSubscribeEvent: {}", sessionSubscribeEvent);
 	}
 
 	@EventListener
-	void sessionUnsubscribeEvent(SessionSubscribeEvent sessionSubscribeEvent) {
-		log.info("Session Unsubscribe ..., SessionId: {}", sessionSubscribeEvent);
+	void sessionUnsubscribeEvent(SessionUnsubscribeEvent sessionUnsubscribeEvent) {
+		log.info("SessionUnsubscribeEvent: {}", sessionUnsubscribeEvent);
 	}
 
 }
@@ -94,7 +95,8 @@ class WebsocketConfig implements WebSocketMessageBrokerConfigurer  {
 	public void registerStompEndpoints(StompEndpointRegistry registry) {
 		registry.addEndpoint("/ws")
 				.setAllowedOriginPatterns("*")
-				.withSockJS();
+				.withSockJS()
+				.setHeartbeatTime(60_000);
 	}
 }
 
@@ -136,7 +138,7 @@ class ChatController {
 		if(Objects.isNull(message.to())) {
 			simpMessagingTemplate.convertAndSend("/topic/public", message, Map.of("auto-delete","true"));
 		} else {
-			simpMessagingTemplate.convertAndSendToUser(message.to(), "/queue/private", message, Map.of("auto-delete","true"));
+			simpMessagingTemplate.convertAndSendToUser(message.to(), "/queue/private", message);
 			//or you can use /user/{username}/queue/private queue to send message to specific user
 		}
 	}
