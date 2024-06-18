@@ -1,6 +1,13 @@
+
 spring:
   application:
     name: @project.artifactId@
   threads:
     virtual:
       enabled: true
+logging:
+  level:
+    org:
+      springframework:
+        web: DEBUG
+        security: DEBUG

@@ -6,8 +6,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.server.ServerHttpRequest;
-import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.Headers;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -17,19 +16,22 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.messaging.MessageSecurityMetadataSourceRegistry;
+import org.springframework.security.config.annotation.web.socket.AbstractSecurityWebSocketMessageBrokerConfigurer;
+import org.springframework.security.config.annotation.web.socket.EnableWebSocketSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
-import org.springframework.web.socket.server.HandshakeInterceptor;
+import org.springframework.web.socket.messaging.SessionConnectEvent;
+import org.springframework.web.socket.messaging.SessionDisconnectEvent;
+import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
 import java.security.Principal;
 import java.util.List;
@@ -38,6 +40,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 @SpringBootApplication
+@Slf4j
 public class ChatApplication {
 
 	public static void main(String[] args) {
@@ -48,26 +51,50 @@ public class ChatApplication {
 	List<String> allUsers() {
 		return List.of("user", "one", "two");
 	}
+
+	@EventListener
+	public void sessionConnectEvent(SessionConnectEvent sessionConnectEvent) {
+		log.info("Session Connected..., GetUser: {}", sessionConnectEvent);
+	}
+
+	@EventListener
+	public void sessionDisconnectEvent(SessionDisconnectEvent sessionDisconnectEvent) {
+		log.info("Session Disconnect ..., SessionId: {}", sessionDisconnectEvent);
+	}
+
+	@EventListener
+	void sessionSubscribeEvent(SessionSubscribeEvent sessionSubscribeEvent) {
+		log.info("Session Subscribe ..., SessionId: {}", sessionSubscribeEvent);
+	}
+
+	@EventListener
+	void sessionUnsubscribeEvent(SessionSubscribeEvent sessionSubscribeEvent) {
+		log.info("Session Unsubscribe ..., SessionId: {}", sessionSubscribeEvent);
+	}
+
 }
 
 @Configuration
 @EnableWebSocketMessageBroker
+@Slf4j
 class WebsocketConfig implements WebSocketMessageBrokerConfigurer  {
+
 	@Override
 	public void configureMessageBroker(MessageBrokerRegistry config) {
 		config.enableStompBrokerRelay("/queue", "/topic")
 				.setRelayHost("localhost")
 				.setRelayPort(61613)
 				.setClientLogin("guest")
-				.setClientPasscode("guest")
-				.setUserDestinationBroadcast("/topic/unresolved-user")
-				.setUserRegistryBroadcast("/topic/registry");
+				.setClientPasscode("guest");
 		config.setApplicationDestinationPrefixes("/app");
+		config.setPreservePublishOrder(true);
 	}
 
 	@Override
 	public void registerStompEndpoints(StompEndpointRegistry registry) {
-		registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
+		registry.addEndpoint("/ws")
+				.setAllowedOriginPatterns("*")
+				.withSockJS();
 	}
 }
 
@@ -101,13 +128,16 @@ class ChatController {
 
 		log.info("Headers: {}", headersMap);
 		log.info("SimpMessageHeaderAccessor: {}", simpMessageHeaderAccessor);
+		log.info("SessionId: {}", simpMessageHeaderAccessor.getSessionId());
+		log.info("SessionAttributes.sessionId: {}", simpMessageHeaderAccessor.getSessionAttributes().get("sessionId"));
 		log.info("Principal: {}", principal);
 		log.info("Message: {}", message);
 
 		if(Objects.isNull(message.to())) {
 			simpMessagingTemplate.convertAndSend("/topic/public", message);
 		} else {
-			simpMessagingTemplate.convertAndSendToUser(message.to(), "/queue/private", message); //The queue name would be /user/{username}/queue/private
+			simpMessagingTemplate.convertAndSendToUser(message.to(), "/queue/private", message, Map.of("auto-delete","true"));
+			//or you can use /user/{username}/queue/private queue to send message to specific user
 		}
 	}
 }

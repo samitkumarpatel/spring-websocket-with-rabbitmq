@@ -68,14 +68,16 @@
 
                 const connect = (userName) => {
                     const socket = new SockJS(`${apiHost}/ws`);
+                    console.log(socket)
                     stompClient.value = Stomp.over(socket);
+                    console.log(stompClient.value)
                     stompClient.value.connect({}, function (frame) {
                         console.log('Connected: ' + frame);
-
+                        const headers = { 'auto-delete': true}
                         stompClient.value.subscribe(`/user/queue/private`, (subscribeMessage) => {
                             console.log(subscribeMessage)
                             messages.value.push(JSON.parse(subscribeMessage.body));
-                        });
+                        }, headers);
 
                         stompClient.value.subscribe(`/topic/public`, (subscribeMessage) => {
                             console.log(subscribeMessage)
