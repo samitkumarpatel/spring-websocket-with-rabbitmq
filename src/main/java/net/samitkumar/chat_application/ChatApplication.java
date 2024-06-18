@@ -134,7 +134,7 @@ class ChatController {
 		log.info("Message: {}", message);
 
 		if(Objects.isNull(message.to())) {
-			simpMessagingTemplate.convertAndSend("/topic/public", message);
+			simpMessagingTemplate.convertAndSend("/topic/public", message, Map.of("auto-delete","true"));
 		} else {
 			simpMessagingTemplate.convertAndSendToUser(message.to(), "/queue/private", message, Map.of("auto-delete","true"));
 			//or you can use /user/{username}/queue/private queue to send message to specific user

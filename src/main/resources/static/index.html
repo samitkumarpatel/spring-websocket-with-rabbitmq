@@ -82,7 +82,7 @@
                         stompClient.value.subscribe(`/topic/public`, (subscribeMessage) => {
                             console.log(subscribeMessage)
                             messages.value.push(JSON.parse(subscribeMessage.body));
-                        });
+                        }, headers);
                     });
                 }
 
