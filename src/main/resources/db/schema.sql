@@ -1,5 +1,5 @@
 -- User table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
        id SERIAL PRIMARY KEY,
        username VARCHAR(50) NOT NULL UNIQUE,
        password VARCHAR(100) NOT NULL,
@@ -7,14 +7,14 @@ CREATE TABLE users (
 );
 
 -- Group table
-CREATE TABLE groups (
+CREATE TABLE IF NOT EXISTS groups (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL UNIQUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Group membership table (many-to-many relationship between users and groups)
-CREATE TABLE group_memberships (
+CREATE TABLE IF NOT EXISTS group_memberships (
        user_id INT NOT NULL,
        group_id INT NOT NULL,
        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -24,7 +24,7 @@ CREATE TABLE group_memberships (
 );
 
 -- Messages table
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
       sender_id INT NOT NULL,
       receiver_id INT,
@@ -35,7 +35,7 @@ CREATE TABLE messages (
 );
 
 -- Chat history table
-CREATE TABLE chat_history (å
+CREATE TABLE IF NOT EXISTS chat_history (
       id SERIAL PRIMARY KEY,
       message_id INT NOT NULL,
       group_id INT,
