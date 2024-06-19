@@ -2,6 +2,7 @@ package net.samitkumar.chat_application;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -13,6 +14,9 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.messaging.tcp.ReconnectStrategy;
+import org.springframework.messaging.tcp.TcpConnectionHandler;
+import org.springframework.messaging.tcp.TcpOperations;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -38,6 +42,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @SpringBootApplication
@@ -80,11 +85,17 @@ public class ChatApplication {
 @Slf4j
 class WebsocketConfig implements WebSocketMessageBrokerConfigurer  {
 
+	@Value("${spring.rabbitmq.relay.host}")
+	private String relayHost;
+
+	@Value("${spring.rabbitmq.relay.port}")
+	private int relayPort;
+
 	@Override
 	public void configureMessageBroker(MessageBrokerRegistry config) {
 		config.enableStompBrokerRelay("/queue", "/topic")
-				.setRelayHost("localhost")
-				.setRelayPort(61613)
+				.setRelayHost(relayHost)
+				.setRelayPort(relayPort)
 				.setClientLogin("guest")
 				.setClientPasscode("guest");
 		config.setApplicationDestinationPrefixes("/app");
@@ -134,11 +145,11 @@ class ChatController {
 		log.info("SessionAttributes.sessionId: {}", simpMessageHeaderAccessor.getSessionAttributes().get("sessionId"));
 		log.info("Principal: {}", principal);
 		log.info("Message: {}", message);
-
+		Map<String, Object> headers = Map.of("auto-delete", true, "x-message-ttl", 6000, "id", principal.getName());
 		if(Objects.isNull(message.to())) {
-			simpMessagingTemplate.convertAndSend("/topic/public", message, Map.of("auto-delete","true"));
+			simpMessagingTemplate.convertAndSend("/topic/public", message);
 		} else {
-			simpMessagingTemplate.convertAndSendToUser(message.to(), "/queue/private", message);
+			simpMessagingTemplate.convertAndSendToUser(message.to(), "/queue/private", message, headers);
 			//or you can use /user/{username}/queue/private queue to send message to specific user
 		}
 	}

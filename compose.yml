@@ -9,12 +9,9 @@ services:
       - "15674:15674" #rabbit_web_stomp
       - "61613:61613" # STOMP
       - "1883:1883" #MQTT
-    command:
-      - /bin/bash
-      - -c
-      - |
-        rabbitmq-plugins enable --offline rabbitmq_management rabbitmq_stomp rabbitmq_web_stomp rabbitmq_mqtt
-        rabbitmq-server
+    volumes:
+        - ./enabled_plugins:/etc/rabbitmq/enabled_plugins
 #    environment:
 #      RABBITMQ_DEFAULT_USER: user
 #      RABBITMQ_DEFAULT_PASS: password
+#      RABBITMQ_DEFAULT_VHOST: /
