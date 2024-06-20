@@ -35,7 +35,6 @@
             cursor: pointer;
         }
         .online__user:hover {
-            background-color: #f1f1f1;
             height: 30px;
             border: 1px solid grey;
             padding: 5px;
@@ -48,22 +47,45 @@
             padding: 5px;
             border-radius: 5px;
         }
+        .connected {
+            width: 90px;
+            height: 40px;
+            color: white;
+            background-color: green;
+        }
+        .disconnected {
+            width: 90px;
+            height: 40px;
+            color: white;
+            padding: 5px;
+            background-color: red;
+        }
+        footer small {
+            color: grey;
+        }
     </style>
 </head>
 <body>
     <div id="app">
         <h3>{{ title }}</h3>
         <hr/>
+        <div style="display: flex">
+            <div style="flex: 1">
+                <details>
+                    <summary>
+                        Welcome, {{ currentUser ? currentUser : 'anonymous' }}!
+                    </summary>
+                    <pre>{{ user }}</pre>
+                </details>
+            </div>
+            <div style="flex: 1; text-align: right">
+                <a href="/logout">Logout</a>
+            </div>
+        </div>
 
-        <details>
-            <summary>
-                Welcome, <strong>{{ currentUser ? currentUser : 'UNKNOWN' }}</strong>!
-                <br/>
-                <small>(Expand to know more)</small>
-            </summary>
-            <pre>{{ user }}</pre>
-        </details>
+
         <hr/>
+        <!-- deprecated -->
         <div class="chat__parent" v-if="false">
             <div class="chat__parent_col">
                 <h4>Chat</h4>
@@ -81,33 +103,47 @@
             </div>
             <hr/>
         </div>
+        <!-- deprecated -->
 
         <div style="display: flex">
-                <div style="flex: 1; padding: 5px">
-                    <strong>Select a user to be start with:</strong>
-                    <hr/>
-                    <p class="online__user" :class="currentSelectedUser === u ? 'current__selected__user' : ''" v-for="u in ['One','Two','User']" @click="chatToUser(u)">{{u}}</p>
-                </div>
-                <div style="flex: 2; border-left: 1px solid blue; padding: 5px">
-                    <user-chat-box :user="currentSelectedUser" v-if="currentSelectedUser"></user-chat-box>
-                    <p v-else> Please Select a user in the left to do some action!</p>
-                </div>
+            <div style="flex: 1; padding: 5px">
+                <small>Available user and group to be chat with : (Please select one to be get started!)</small>
+                <p class="online__user" :class="currentSelectedUser === u ? 'current__selected__user' : ''" v-for="u in allUser" @click="chatToUser(u)">
+                    {{u.username}}
+                </p>
+            </div>
+            <div style="flex: 2; border-left: 1px solid blue; padding: 5px">
+                <user-chat-box :user="currentSelectedUser" :current="currentUser" v-if="currentSelectedUser"></user-chat-box>
+                <p v-else> Please Select a user in the left to do some action!</p>
+            </div>
         </div>
+
+        <footer style="margin-top: 100px;">
+            <hr/>
+            <div style="display: flex">
+                <div style="flex: 1">
+                    <div :class="connectionStatus ? 'connected' : 'disconnected'">
+                        {{ connectionStatus ? 'Connected' : 'Disconnected' }}
+                        <small v-if="!connectionStatus">Refresh the page</small>
+                    </div>
+                </div>
+                <div style="flex: 1; text-align: right">
+                    <small>&copy; 2024 - Chat Application</small>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <template id="user__chat__box">
-        <h4>{{ user }}</h4>
+        <h4>From: {{ currentUser }} , To: {{ user?.username }}</h4>
         <div class="chatbox__messages">
-            <p class="chatbox__messages__message_from">Hi</p>
-            <p class="chatbox__messages__message_from">how are you ?</p>
-            <p class="chatbox__messages__message_from">Shell we mee?</p>
-            <p class="chatbox__messages__message_to">Hello</p>
+            <p :class=" message.to === currentUser ? 'chatbox__messages__message_to' : 'chatbox__messages__message_from' " v-for="message in messages">{{ message }}</p>
         </div>
         <hr/>
         <div class="chatbox__form">
-            <form @submit="(e) => e.preventDefault()">
-                <input style="width: 80%; height: 40px;" type="text" placeholder="Message" />
-                <button style="width: 15%; height: 45px; margin-left: 5px" type="submit">Send</button>
+            <form @submit.prevent="sendMessage">
+                <input style="width: 80%; height: 40px;" type="text" placeholder="Message" v-model="message" />
+                <button style="width: 15%; height: 45px; margin-left: 5px" type="submit" :disabled="!message">Send</button>
             </form>
         </div>
     </template>
@@ -116,22 +152,37 @@
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script>
-        const { createApp, ref , onMounted} = Vue
+        const { createApp, ref ,toRef, onMounted, watch } = Vue
         const apiHost = 'http://localhost:8080'
 
         const UserChatBox = {
-            props: ['user'],
+            props: ['user', 'current'],
             emits: [],
             template: '#user__chat__box',
-            setup() {
-                //Bring all the messages from the server
-                //Deal with current incoming and outgoing messages
+            setup(props) {
+                const messages = ref([])
+                const message = ref(null)
+                const user = toRef(props, 'user')
+                const currentUser = toRef(props, 'current')
+                const sendMessage = () => {
+                    const chatMessage = {
+                        to: user.value.username,
+                        from : currentUser.value,
+                        text: message.value
+                    }
+                    console.log('Send message:', chatMessage)
+                    message.value = null
+                }
+
+                watch(user, (n, o) => {
+                    console.log(`User changed from ${o.username} to ${n.username}`)
+                })
 
                 onMounted(() => {
                 })
 
                 return {
-
+                    messages, message, sendMessage, user, currentUser
                 }
             }
         }
@@ -139,7 +190,7 @@
         createApp({
             setup() {
                 const title = ref('Chat Application')
-                const message = ref({
+                const chatMessage = ref({
                             to: null,
                             text: null,
                             from: null
@@ -150,6 +201,7 @@
                 const allUser = ref([])
                 const messages = ref([])
                 const currentSelectedUser = ref(null)
+                const connectionStatus = ref(false)
 
                 const connect = (userName) => {
                     const socket = new SockJS(`${apiHost}/ws`);
@@ -165,6 +217,7 @@
                         stompClient.value.subscribe(`/topic/public`, (subscribeMessage) => {
                             messages.value.push(JSON.parse(subscribeMessage.body));
                         });
+                        connectionStatus.value = true
                     });
                 }
 
@@ -205,8 +258,8 @@
 
                 const sendMessageToUser = (event) => {
                     event.preventDefault()
-                    sendMessage({...message.value, from: currentUser.value })
-                    message.value = {
+                    sendMessage({...chatMessage.value, from: currentUser.value })
+                    chatMessage.value = {
                         to: null,
                         text: null,
                         from: null
@@ -224,7 +277,7 @@
                 })
 
                 return {
-                    title, message, currentUser, user, allUser, messages, currentSelectedUser,
+                    title, message: chatMessage, currentUser, user, allUser, messages, currentSelectedUser, connectionStatus,
                     sendMessageToUser, chatToUser
                 }
             },

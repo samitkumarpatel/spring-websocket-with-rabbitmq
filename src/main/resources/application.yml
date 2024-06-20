@@ -21,6 +21,7 @@ logging:
   level:
     org:
       springframework:
+        data: DEBUG
         web: DEBUG
         security: DEBUG
         amqp: DEBUG

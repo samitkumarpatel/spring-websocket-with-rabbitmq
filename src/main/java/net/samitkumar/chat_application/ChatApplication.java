@@ -19,26 +19,23 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.messaging.tcp.ReconnectStrategy;
-import org.springframework.messaging.tcp.TcpConnectionHandler;
-import org.springframework.messaging.tcp.TcpOperations;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.messaging.MessageSecurityMetadataSourceRegistry;
-import org.springframework.security.config.annotation.web.socket.AbstractSecurityWebSocketMessageBrokerConfigurer;
-import org.springframework.security.config.annotation.web.socket.EnableWebSocketSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -49,23 +46,38 @@ import org.springframework.web.socket.messaging.SessionUnsubscribeEvent;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
 
 @SpringBootApplication
 @Slf4j
 @RequiredArgsConstructor
 public class ChatApplication {
-final UserRepository userRepository;
-
+	final UserRepository userRepository;
+	final PasswordEncoder passwordEncoder;
 	public static void main(String[] args) {
 		SpringApplication.run(ChatApplication.class, args);
 	}
 
 	@EventListener
 	void onApplicationEvent(ApplicationStartedEvent event) {
-		
+		//delete all users
+		userRepository.deleteAll();
+
+		//create some users
+		userRepository
+				.saveAll(
+						List.of(
+							new Users(null, "one", passwordEncoder.encode("password"), Set.of()),
+							new Users(null, "two", passwordEncoder.encode("password"), Set.of()),
+							new Users(null, "three", passwordEncoder.encode("password"), Set.of())
+						)
+				)
+				.forEach(user -> log.info("User: {}", user));
 	}
 
 
@@ -91,6 +103,8 @@ final UserRepository userRepository;
 
 }
 
+
+//Websocket , STOMP and SocketJS configuration
 @Configuration
 @EnableWebSocketMessageBroker
 @Slf4j
@@ -127,21 +141,8 @@ record ChatMessage(String from, String text, String to) { }
 @Controller
 @RequiredArgsConstructor
 @Slf4j
-class ChatController {
+class MessageController {
 	final SimpMessagingTemplate simpMessagingTemplate;
-	final UserRepository userRepository;
-
-	@GetMapping("/all/user")
-	@ResponseBody
-	public Iterable<Users> users() {
-		return userRepository.findAll();
-	}
-
-	@GetMapping("/me")
-	@ResponseBody
-	public Principal me(Principal principal) {
-		return principal;
-	}
 
 	@MessageMapping("/chat.sendMessage")
 	public void sendMessage(@Payload ChatMessage message, @Headers Map<Object, Object> headersMap, @Headers SimpMessageHeaderAccessor simpMessageHeaderAccessor, Principal principal) {
@@ -165,6 +166,33 @@ class ChatController {
 	}
 }
 
+
+//api
+@RestController
+@RequiredArgsConstructor
+@CrossOrigin(originPatterns = "*")
+class ChatRestController {
+	final UserRepository userRepository;
+
+	@GetMapping("/all/user")
+	@ResponseBody
+	public Iterable<Users> users() {
+		return userRepository
+				.findAll()
+				.stream()
+				.map(user -> new Users(user.id(), user.username(), null, null))
+				.toList();
+	}
+
+	@GetMapping("/me")
+	@ResponseBody
+	public Principal me(Principal principal) {
+		return principal;
+	}
+}
+
+
+//security
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -174,6 +202,12 @@ class SecurityConfiguration {
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
+				.cors(httpSecurityCorsConfigurer -> httpSecurityCorsConfigurer.configurationSource(request -> {
+					var cors = new org.springframework.web.cors.CorsConfiguration();
+					cors.setAllowedOriginPatterns(List.of("*"));
+					return cors;
+				}))
+				.csrf(AbstractHttpConfigurer::disable)
 				.authorizeHttpRequests((authorize) -> authorize
 						.requestMatchers("/login").permitAll()
 						.anyRequest().authenticated()
@@ -184,14 +218,10 @@ class SecurityConfiguration {
 		return http.build();
 	}
 
-//	@Bean
-//	public InMemoryUserDetailsManager userDetailsService() {
-//		return allUsers
-//				.stream()
-//				.map(username -> User.withDefaultPasswordEncoder().username(username).password("password").roles("USER").build())
-//				.collect(Collectors.collectingAndThen(Collectors.toList(), InMemoryUserDetailsManager::new));
-//	}
-
+	@Bean
+	PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
 }
 
 @Service
