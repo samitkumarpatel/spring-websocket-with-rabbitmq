@@ -91,11 +91,11 @@
             <div style="flex: 1; padding: 5px">
                 <small class="info">Available user and group to be chat with : (Please select one to be get started!)</small>
                 <p class="online__user" :class="currentSelectedUser === u ? 'current__selected__user' : ''" v-for="u in allUser" @click="chatToUser(u)">
-                    {{u.username}}
+                    {{u.username}} ({{ messagesPerUser[u.username] ? messagesPerUser[u.username].length : 0 }})
                 </p>
             </div>
             <div style="flex: 2; border-left: 1px solid blue; padding: 5px">
-                <user-chat-box :user="currentSelectedUser" :current="currentUser" v-if="currentSelectedUser" :messages="instantMessages" @send="sendMessage"></user-chat-box>
+                <user-chat-box :user="currentSelectedUser" :current="currentUser" v-if="currentSelectedUser" :messages="[]" @send="sendMessage"></user-chat-box>
                 <p v-else> Please Select a user in the left to do some action!</p>
             </div>
         </div>
@@ -119,7 +119,8 @@
     <template id="user__chat__box">
         <h4>From: {{ currentUser }} , To: {{ user?.username }}</h4>
         <div class="chatbox__messages">
-            <p :class="message.to !== currentUser ? 'chatbox__messages__message_to' : 'chatbox__messages__message_from' " v-for="message in messages">[{{message.from}}] {{ message.text }}</p>
+            <small v-if="messages.length === 0">No messages from the user</small>
+            <p v-else :class="message.to !== currentUser ? 'chatbox__messages__message_to' : 'chatbox__messages__message_from' " v-for="message in messages">[{{message.from}}] {{ message.text }}</p>
         </div>
         <hr/>
         <div class="chatbox__form">
@@ -157,7 +158,7 @@
                     message.value = null
                 }
 
-                watch(user, (n, o) => {
+                watch(user.value, (n, o) => {
                     console.log(`User changed from ${o.username} to ${n.username}`)
                 })
 
@@ -180,6 +181,7 @@
                 const currentSelectedUser = ref(null)
                 const connectionStatus = ref(false)
                 const instantMessages = ref([])
+                const messagesPerUser = ref({})
 
                 const connect = (userName) => {
                     const socket = new SockJS(`${apiHost}/ws`);
@@ -190,6 +192,7 @@
 
                         stompClient.value.subscribe(`/user/queue/private`, (subscribeMessage) => {
                             instantMessages.value.push(JSON.parse(subscribeMessage.body));
+                            reactOnInstantMessages()
                         }, headers);
 
                         stompClient.value.subscribe(`/topic/public`, (subscribeMessage) => {
@@ -217,6 +220,9 @@
                             currentUser.value = data.name
                             connect(currentUser.value)
                         })
+                        .then(() => {
+                            fetchAllUser()
+                        })
                         .catch(error => {
                             console.error('There has been a problem with your fetch operation:', error);
                         });
@@ -230,8 +236,10 @@
                             }
                             return response.json();
                         })
+                        //filter out the current user, so it will not show in the list
+                        .then(data => data.filter(u => u.username !== currentUser.value))
                         .then(data => {
-                            allUser.value = data.filter((u) => u.username!==currentUser.value)
+                            allUser.value = data
                         })
                 }
 
@@ -241,13 +249,24 @@
                     instantMessages.value = []
                 }
 
+                watch(instantMessages.value, (nIM, oIM) => {
+                    console.log('changes on instantMessages')
+                    //messagesPerUser.value = Object.groupBy(instantMessages.value, ({ from }) => from)
+                    //no action needed
+                })
+
+                const reactOnInstantMessages = () => {
+                    console.log('reactOnInstantMessages')
+                    messagesPerUser.value = Object.groupBy(instantMessages.value, ({ from }) => from)
+                }
+
                 onMounted(() => {
                     me()
-                    fetchAllUser()
+                    //fetchAllUser()
                 })
 
                 return {
-                    title,currentUser, user, allUser, currentSelectedUser, connectionStatus, instantMessages,
+                    title,currentUser, user, allUser, currentSelectedUser, connectionStatus, instantMessages, messagesPerUser,
                     chatToUser,sendMessage
                 }
             },
