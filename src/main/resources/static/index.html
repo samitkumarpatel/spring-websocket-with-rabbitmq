@@ -22,9 +22,11 @@
             margin: 5px;
             text-align: left;
             height: 40px;
+            width: auto;
         }
         .chatbox__messages__message_to {
             background-color: #f1f1f1;
+            width: auto;
             padding: 10px;
             border-radius: 10px;
             margin: 5px;
@@ -95,7 +97,7 @@
                 </p>
             </div>
             <div style="flex: 2; border-left: 1px solid blue; padding: 5px">
-                <user-chat-box :user="currentSelectedUser" :current="currentUser" v-if="currentSelectedUser" :messages="[]" @send="sendMessage"></user-chat-box>
+                <user-chat-box :user="currentSelectedUser" :current="currentUser" v-if="currentSelectedUser" :messages="messagesPerUser[currentSelectedUser.username] ? messagesPerUser[currentSelectedUser.username] : []" @send="sendMessage"></user-chat-box>
                 <p v-else> Please Select a user in the left to do some action!</p>
             </div>
         </div>

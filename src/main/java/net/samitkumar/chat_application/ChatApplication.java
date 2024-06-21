@@ -72,9 +72,9 @@ public class ChatApplication {
 		userRepository
 				.saveAll(
 						List.of(
-							new Users(null, "one", passwordEncoder.encode("password"), Set.of()),
-							new Users(null, "two", passwordEncoder.encode("password"), Set.of()),
-							new Users(null, "three", passwordEncoder.encode("password"), Set.of())
+							new Users(null, "one", passwordEncoder.encode("password")),
+							new Users(null, "two", passwordEncoder.encode("password")),
+							new Users(null, "three", passwordEncoder.encode("password"))
 						)
 				)
 				.forEach(user -> log.info("User: {}", user));
@@ -180,7 +180,7 @@ class ChatRestController {
 		return userRepository
 				.findAll()
 				.stream()
-				.map(user -> new Users(user.id(), user.username(), null, null))
+				.map(user -> new Users(user.id(), user.username(), null))
 				.toList();
 	}
 
@@ -237,7 +237,7 @@ class UserService implements UserDetailsService {
 
 //database
 @Table("users")
-record Users(@Id Long id, String username, String password, @MappedCollection(idColumn = "id") Set<Groups> groups) implements UserDetails {
+record Users(@Id Long id, String username, String password) implements UserDetails {
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 		return List.of();
