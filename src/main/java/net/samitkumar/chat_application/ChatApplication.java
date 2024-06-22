@@ -13,6 +13,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.repository.ListCrudRepository;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.messaging.handler.annotation.Headers;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -136,7 +137,7 @@ class WebsocketConfig implements WebSocketMessageBrokerConfigurer  {
 	}
 }
 
-record ChatMessage(String from, String text, String to) { }
+record ChatMessage(String from, String text, String to, @DateTimeFormat LocalDateTime dateTime) { }
 
 @Controller
 @RequiredArgsConstructor
@@ -157,6 +158,7 @@ class MessageController {
 		log.info("Principal: {}", principal);
 		log.info("Message: {}", message);
 		Map<String, Object> headers = Map.of("auto-delete", true, "x-message-ttl", 6000, "id", principal.getName());
+
 		if(Objects.isNull(message.to())) {
 			simpMessagingTemplate.convertAndSend("/topic/public", message);
 		} else {
