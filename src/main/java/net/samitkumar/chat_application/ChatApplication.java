@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.repository.ListCrudRepository;
@@ -144,9 +145,10 @@ record ChatMessage(String from, String text, String to, @DateTimeFormat LocalDat
 @Slf4j
 class MessageController {
 	final SimpMessagingTemplate simpMessagingTemplate;
+	final MessageRepository messageRepository;
 
 	@MessageMapping("/chat.sendMessage")
-	public void sendMessage(@Payload ChatMessage message, @Headers Map<Object, Object> headersMap, @Headers SimpMessageHeaderAccessor simpMessageHeaderAccessor, Principal principal) {
+	public void sendMessage(@Payload ChatMessage chatMessage, @Headers Map<Object, Object> headersMap, @Headers SimpMessageHeaderAccessor simpMessageHeaderAccessor, Principal principal) {
 
 		//manipulate the headers , so the session id is the username
 		//simpMessageHeaderAccessor.setSessionId(principal.getName());
@@ -156,14 +158,17 @@ class MessageController {
 		log.info("SessionId: {}", simpMessageHeaderAccessor.getSessionId());
 		log.info("SessionAttributes.sessionId: {}", simpMessageHeaderAccessor.getSessionAttributes().get("sessionId"));
 		log.info("Principal: {}", principal);
-		log.info("Message: {}", message);
+		log.info("Message: {}", chatMessage);
 		Map<String, Object> headers = Map.of("auto-delete", true, "x-message-ttl", 6000, "id", principal.getName());
 
-		if(Objects.isNull(message.to())) {
-			simpMessagingTemplate.convertAndSend("/topic/public", message);
+		if(Objects.isNull(chatMessage.to())) {
+			simpMessagingTemplate.convertAndSend("/topic/public", chatMessage);
 		} else {
-			simpMessagingTemplate.convertAndSendToUser(message.to(), "/queue/private", message, headers);
+			simpMessagingTemplate.convertAndSendToUser(chatMessage.to(), "/queue/private", chatMessage, headers);
 			//or you can use /user/{username}/queue/private queue to send message to specific user
+			//save to the db
+			messageRepository
+					.save(new Messages(null, chatMessage.from(), chatMessage.to(), chatMessage.text(), chatMessage.dateTime()));
 		}
 	}
 }
@@ -289,9 +294,5 @@ record GroupMemberships(Long userId, Long groupId, LocalDateTime joinedAt) {}
 interface GroupMembershipRepository extends ListCrudRepository<GroupMemberships, Long> {}
 
 @Table("messages")
-record Messages(@Id Long id, Long senderId, Long receiverId, String content, LocalDateTime sentAt) {}
+record Messages(@Id Long id, @Column("from_s") String from, @Column("to_r") String to, String text, @Column("date_time") LocalDateTime dateTime) {}
 interface MessageRepository extends ListCrudRepository<Messages, Long> {}
-
-@Table("chat_history")
-record ChatHistory(@Id Long id, Long messageId, Long groupId, LocalDateTime createdAt) {}
-interface ChatHistoryRepository extends ListCrudRepository<ChatHistory, Long> {}

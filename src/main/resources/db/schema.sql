@@ -25,21 +25,31 @@ CREATE TABLE IF NOT EXISTS group_memberships (
 
 -- Messages table
 CREATE TABLE IF NOT EXISTS messages (
-      id SERIAL PRIMARY KEY,
-      sender_id INT NOT NULL,
-      receiver_id INT,
-      content TEXT NOT NULL,
-      sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+    id SERIAL PRIMARY KEY,
+    from_s TEXT NOT NULL,
+    to_r TEXT,
+    text TEXT NOT NULL,
+    date_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(from_s) REFERENCES users(username) ON DELETE CASCADE,
+    FOREIGN KEY(to_r) REFERENCES users(username) ON DELETE CASCADE
 );
 
+-- CREATE TABLE IF NOT EXISTS messages (
+--       id SERIAL PRIMARY KEY,
+--       sender_id INT NOT NULL,
+--       receiver_id INT,
+--       content TEXT NOT NULL,
+--       sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--       FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+--       FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+-- );
+
 -- Chat history table
-CREATE TABLE IF NOT EXISTS chat_history (
-      id SERIAL PRIMARY KEY,
-      message_id INT NOT NULL,
-      group_id INT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
-      FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
-);
+-- CREATE TABLE IF NOT EXISTS chat_history (
+--       id SERIAL PRIMARY KEY,
+--       message_id INT NOT NULL,
+--       group_id INT,
+--       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--       FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+--       FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+-- );

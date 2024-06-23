@@ -138,7 +138,7 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script>
         const { createApp, ref ,toRef, onMounted, watch } = Vue
-        const apiHost = 'http://localhost:8080'
+        const apiHost = ''
 
         const UserChatBox = {
             props: ['user', 'current', 'conversations'],
@@ -193,8 +193,10 @@
                         const headers = { 'auto-delete': true, 'x-message-ttl': 6000, id: userName}
 
                         stompClient.value.subscribe(`/user/queue/private`, (subscribeMessage) => {
-                            instantMessages.value.push(JSON.parse(subscribeMessage.body));
-                            reactOnInstantMessages()
+                            //instantMessages.value.push(JSON.parse(subscribeMessage.body));
+                            //reactOnInstantMessages()
+                            const message = JSON.parse(subscribeMessage.body)
+                            messagesPerUser.value[message.from] = messagesPerUser.value[message.from] ? [...messagesPerUser.value[message.from], message] : [message]
                         }, headers);
 
                         stompClient.value.subscribe(`/topic/public`, (subscribeMessage) => {
@@ -207,6 +209,7 @@
                 const sendMessage = (message={}) => {
                     console.log(`sendMessage : ${message}`)
                     stompClient.value.send("/app/chat.sendMessage", {}, JSON.stringify(message));
+                    messagesPerUser.value[message.to] = messagesPerUser.value[message.to] ? [...messagesPerUser.value[message.to], message] : [message]
                 }
 
                 const me = () => {
@@ -251,7 +254,7 @@
 
                 const reactOnInstantMessages = () => {
                     console.log('reactOnInstantMessages')
-                    messagesPerUser.value = Object.groupBy(instantMessages.value, ({ from }) => from)
+                    messagesPerUser.value = {...messagesPerUser.value, ...Object.groupBy(instantMessages.value, ({from}) => from) }
                 }
 
                 onMounted(() => {
