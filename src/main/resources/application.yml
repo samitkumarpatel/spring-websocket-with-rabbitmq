@@ -5,7 +5,10 @@ spring:
   threads:
     virtual:
       enabled: true
-
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: admin
+    password: password
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -18,6 +21,7 @@ logging:
   level:
     org:
       springframework:
+        data: DEBUG
         web: DEBUG
         security: DEBUG
         amqp: DEBUG

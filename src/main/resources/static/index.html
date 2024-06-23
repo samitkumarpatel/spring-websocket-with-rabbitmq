@@ -15,56 +15,175 @@
             flex: 1;
             border-right: 1px solid grey;
         }
+        .chatbox__messages__message_from {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 5px;
+            text-align: left;
+            height: 40px;
+            width: auto;
+        }
+        .chatbox__messages__message_to {
+            background-color: #f1f1f1;
+            width: auto;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 5px;
+            text-align: right;
+            height: 40px;
+        }
+        .online__user {
+            cursor: pointer;
+        }
+        .online__user:hover {
+            height: 30px;
+            border: 1px solid grey;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .current__selected__user {
+            background-color: #f1f1f1;
+            height: 30px;
+            border: 1px solid grey;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .connected {
+            width: 90px;
+            height: 40px;
+            color: white;
+            background-color: green;
+        }
+        .disconnected {
+            width: 90px;
+            height: 40px;
+            color: white;
+            padding: 5px;
+            background-color: red;
+        }
+        footer small {
+            color: grey;
+        }
+        small.info {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
     <div id="app">
         <h3>{{ title }}</h3>
         <hr/>
-
-        <details>
-            <summary>Welcome, <strong>{{ currentUser ? currentUser : 'UNKNOWN' }}</strong>! <small>Expand to know more!</small></summary>
-            <pre>{{ user }}</pre>
-        </details>
-        <hr/>
-        <div class="chat__parent">
-            <div class="chat__parent_col">
-                <h4>Chat</h4>
-                <form @submit="sendMessageToUser">
-                    <select v-model="message.to">
-                        <option v-for="user in allUser" :value="user.username">{{ user.username }}</option>
-                    </select>
-                    <input type="text" v-model="message.text" placeholder="Message" />
-                    <button type="submit" :disabled="!message.text">Send</button>
-                </form>
+        <div style="display: flex">
+            <div style="flex: 1">
+                <details>
+                    <summary>
+                        Welcome, {{ loggedInUser ? loggedInUser.name : 'anonymous' }}!
+                    </summary>
+                    <pre>{{ loggedInUser }}</pre>
+                </details>
             </div>
-            <div class="chat__parent_col">
-                <h4>Messages</h4>
-                <p v-for="message in messages">{{ message }}</p>
+            <div style="flex: 1; text-align: right">
+                <a href="/logout">Logout</a>
             </div>
         </div>
+
+        <hr/>
+        <div style="display: flex">
+            <div style="flex: 1; padding: 5px">
+                <small class="info">Available user and group to be chat with : (Please select one to be get started!)</small>
+                <p class="online__user" :class="currentSelectedUserForChat === u ? 'current__selected__user' : ''" v-for="u in allUser" @click="chatToUser(u)">
+                    {{u.username}} ({{ messagesPerUser[u.username] ? messagesPerUser[u.username].length : 0 }})
+                </p>
+            </div>
+            <div style="flex: 2; border-left: 1px solid blue; padding: 5px">
+                <user-chat-box :user="currentSelectedUserForChat" :current="loggedInUser" v-if="currentSelectedUserForChat" :conversations="messagesPerUser[currentSelectedUserForChat.username] ? messagesPerUser[currentSelectedUserForChat.username] : []" @send="sendMessage"></user-chat-box>
+                <p v-else> Please Select a user in the left to do some action!</p>
+            </div>
+        </div>
+
+        <footer style="margin-top: 100px;">
+            <hr/>
+            <div style="display: flex">
+                <div style="flex: 1">
+                    <div :class="connectionStatus ? 'connected' : 'disconnected'">
+                        {{ connectionStatus ? 'Connected' : 'Disconnected' }}
+                        <small v-if="!connectionStatus">Refresh the page</small>
+                    </div>
+                </div>
+                <div style="flex: 1; text-align: right">
+                    <small>&copy; 2024 - Chat Application</small>
+                </div>
+            </div>
+        </footer>
     </div>
 
+    <template id="user__chat__box">
+        <h4>From: {{ loggedInUser.name }} , To: {{ user?.username }}</h4>
+        <div class="chatbox__messages">
+            <small v-if="conversations.length === 0">No messages from the user</small>
+            <p v-else :class="conversation.to !== loggedInUser.name ? 'chatbox__messages__message_to' : 'chatbox__messages__message_from' " v-for="conversation in conversations">[{{conversation.from}}] {{ conversation.text }}</p>
+        </div>
+        <hr/>
+        <div class="chatbox__form">
+            <form @submit.prevent="sendMessage">
+                <input style="width: 80%; height: 40px;" type="text" placeholder="Message" v-model="message" />
+                <button style="width: 15%; height: 45px; margin-left: 5px" type="submit" :disabled="!message">Send</button>
+            </form>
+        </div>
+    </template>
 
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script>
-        const { createApp, ref , onMounted} = Vue
-        const apiHost = 'http://localhost:8080'
+        const { createApp, ref ,toRef, onMounted, watch } = Vue
+        const apiHost = ''
+
+        const UserChatBox = {
+            props: ['user', 'current', 'conversations'],
+            emits: ['send'],
+            template: '#user__chat__box',
+            setup(props, { emit }) {
+                const conversations = toRef(props, 'conversations')
+                const message = ref(null)
+                const user = toRef(props, 'user')
+                const loggedInUser = toRef(props, 'current')
+                const sendMessage = () => {
+                    const chatMessage = {
+                        to: user.value.username,
+                        from : loggedInUser.value.name,
+                        text: message.value,
+                        dateTime: new Date().toISOString()
+                    }
+                    console.log('Send message:', chatMessage)
+                    emit('send', chatMessage);
+                    message.value = null
+                }
+
+                watch(user.value, (n, o) => {
+                    console.log(`User changed from ${o.username} to ${n.username}`)
+                })
+
+                onMounted(() => {
+                })
+
+                return {
+                    conversations, message, sendMessage, user, loggedInUser
+                }
+            }
+        }
+
         createApp({
             setup() {
                 const title = ref('Chat Application')
-                const message = ref({
-                            to: null,
-                            text: null,
-                            from: null
-                        })
                 const stompClient = ref(null)
-                const currentUser = ref(null)
-                const user = ref({})
+                const loggedInUser = ref(null)
                 const allUser = ref([])
-                const messages = ref([])
+                const currentSelectedUserForChat = ref(null)
+                const connectionStatus = ref(false)
+                const instantMessages = ref([])
+                const messagesPerUser = ref({})
 
                 const connect = (userName) => {
                     const socket = new SockJS(`${apiHost}/ws`);
@@ -72,18 +191,25 @@
                     stompClient.value.connect({}, function (frame) {
                         console.log('Connected frame: ' + frame);
                         const headers = { 'auto-delete': true, 'x-message-ttl': 6000, id: userName}
+
                         stompClient.value.subscribe(`/user/queue/private`, (subscribeMessage) => {
-                            messages.value.push(JSON.parse(subscribeMessage.body));
+                            //instantMessages.value.push(JSON.parse(subscribeMessage.body));
+                            //reactOnInstantMessages()
+                            const message = JSON.parse(subscribeMessage.body)
+                            messagesPerUser.value[message.from] = messagesPerUser.value[message.from] ? [...messagesPerUser.value[message.from], message] : [message]
                         }, headers);
 
                         stompClient.value.subscribe(`/topic/public`, (subscribeMessage) => {
-                            messages.value.push(JSON.parse(subscribeMessage.body));
+                            instantMessages.value.push(JSON.parse(subscribeMessage.body));
                         });
+                        connectionStatus.value = true
                     });
                 }
 
                 const sendMessage = (message={}) => {
+                    console.log(`sendMessage : ${message}`)
                     stompClient.value.send("/app/chat.sendMessage", {}, JSON.stringify(message));
+                    messagesPerUser.value[message.to] = messagesPerUser.value[message.to] ? [...messagesPerUser.value[message.to], message] : [message]
                 }
 
                 const me = () => {
@@ -95,9 +221,11 @@
                             return response.json();
                         })
                         .then(data => {
-                            user.value = data
-                            currentUser.value = data.name
-                            connect(currentUser.value)
+                            loggedInUser.value = data
+                            connect(loggedInUser.value.name)
+                        })
+                        .then(() => {
+                            fetchAllUser()
                         })
                         .catch(error => {
                             console.error('There has been a problem with your fetch operation:', error);
@@ -112,29 +240,35 @@
                             }
                             return response.json();
                         })
+                        //filter out the current user, so it will not show in the list
+                        .then(data => data.filter(u => u.username !== loggedInUser.value.name))
                         .then(data => {
                             allUser.value = data
                         })
                 }
 
-                const sendMessageToUser = (event) => {
-                    event.preventDefault()
-                    sendMessage({...message.value, from: currentUser.value })
-                    message.value = {
-                        to: null,
-                        text: null,
-                        from: null
-                    }
+                const chatToUser = (user) => {
+                    currentSelectedUserForChat.value = user
+                    instantMessages.value = []
+                }
+
+                const reactOnInstantMessages = () => {
+                    console.log('reactOnInstantMessages')
+                    messagesPerUser.value = {...messagesPerUser.value, ...Object.groupBy(instantMessages.value, ({from}) => from) }
                 }
 
                 onMounted(() => {
                     me()
-                    fetchAllUser()
+                    //fetchAllUser()
                 })
 
                 return {
-                    title, message, currentUser, user, allUser, messages, sendMessageToUser
+                    title,loggedInUser, allUser, currentSelectedUserForChat, connectionStatus, instantMessages, messagesPerUser,
+                    chatToUser,sendMessage
                 }
+            },
+            components: {
+                UserChatBox
             }
         }).mount('#app')
     </script>
