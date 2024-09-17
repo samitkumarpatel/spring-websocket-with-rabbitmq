@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>net.samitkumar</groupId>
-	<artifactId>chat-application</artifactId>
+	<artifactId>chat-application-rabbitmq</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>chat-application</name>
+	<name>chat-application-rabbitmq</name>
 	<description>Demo project for Spring Boot</description>
 	<properties>
 		<java.version>21</java.version>
