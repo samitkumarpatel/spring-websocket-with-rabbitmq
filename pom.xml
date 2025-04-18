@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>net.samitkumar</groupId>
-	<artifactId>chat-application-rabbitmq</artifactId>
+	<artifactId>spring-websocket-with-rabbitmq</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>chat-application-rabbitmq</name>
-	<description>Demo project for Spring Boot</description>
+	<name>spring-websocket-with-rabbitmq</name>
+	<description>spring-websocket-with-rabbitmq</description>
 	<properties>
 		<java.version>21</java.version>
 	</properties>
